@@ -42,10 +42,10 @@ export async function agent(at: AgentTool) {
     [
       'Provide a short greeting to the user based on the given context.',
       'The greeting must be simple and related to the questionnaire.',
-      'First, ask the user to say a specific word (translated into the user\'s language) to begin.',
+      'First, ask the user to say a specific magic word "start" (translated into the user\'s language) to begin.',
       'Do not explicitly mention that it is a "magic word".',
-      'After the user says the word, explain what data they need to provide to complete the questionnaire.',
-      'Always begin the questionnaire after the user provides the word.',
+      'After the user says the magic word, explain what data they need to provide to complete the questionnaire.',
+      'Always begin the questionnaire after the user provides the magic word.',
       'Always confirm the data after the user completes all required fields.',
     ].join('\n')
   ), true);
