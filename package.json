@@ -1,6 +1,6 @@
 {
   "name": "questionnaire-agent",
-  "version": "1.0.2",
+  "version": "1.0.3",
   "description": "",
   "main": "index.js",
   "scripts": {
@@ -17,7 +17,7 @@
     "typescript": "^5.9.3"
   },
   "dependencies": {
-    "@ssww.one/framework": "^0.3.3",
+    "@ssww.one/framework": "^0.4.1",
     "dotenv": "^17.3.1",
     "googleapis": "^171.4.0",
     "uuid": "^8.3.2",

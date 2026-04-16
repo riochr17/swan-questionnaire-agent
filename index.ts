@@ -1,5 +1,5 @@
 require('dotenv').config();
-import { AgentTool, OpenAILLM, startAgentCLI, startAgentServer, startAgentTelegram, startAgentWAHA, TerminationError, TerminationTimeout } from "@ssww.one/framework";
+import { AgentTool, loop, OpenAILLM, startAgentCLI, startAgentServer, startAgentTelegram, startAgentWAHA, TerminationError, TerminationTimeout } from "@ssww.one/framework";
 import {google} from 'googleapis';
 import path from "path";
 import { addNewRecord, testRead } from "./google-sheets";
@@ -51,39 +51,28 @@ export async function agent(at: AgentTool) {
   ), true);
   
   // Main loop
-  try {
-    while (true) {
-      const instruction = await at.waitForUserInstruction();
-      const has_complete_data: boolean = await at.askLLM(`Has the user provided all required data for the questionnaire?`, z.boolean());
-      console.log({ has_complete_data });
-      if (!has_complete_questionnaire && has_complete_data) {
-        const data: string[] = await at.askLLM(`Extract the latest data provided by the user in the correct order based on the required format. Return the result as an array of strings. For optional fields, return an empty string.`, z.array(z.string()));
-        console.log({ data });
-        await addNewRecord(auth, spreadsheet_id, spreadsheet_sheet_name, data);
-        await at.streamLLM(
-          `Thank the user and inform them that the questionnaire has been completed. After this, do not accept any more data and ask the user to refresh or reopen the page to start a new session.`,
-          (s: string) => at.print(s)
-        );
-        at.exit(``);
-        return;
-      } else {
-        await at.streamLLM(
-          `User request: "${instruction}". Respond to the user's request, but continue guiding them to complete the questionnaire.`,
-          (s: string) => at.print(s)
-        );
-        at.print('', true);
-      }
-    }
-  } catch (err: any) {
-    if (err instanceof TerminationError) {
-      at.exit(`Conversation ended`);
-    }
-    else if (err instanceof TerminationTimeout) {
-      at.exit(`Conversation ended`);
+  await loop(async () => {
+    const instruction = await at.waitForUserInstruction();
+    const has_complete_data: boolean = await at.askLLM(`Has the user provided all required data for the questionnaire?`, z.boolean());
+    console.log({ has_complete_data });
+    if (!has_complete_questionnaire && has_complete_data) {
+      const data: string[] = await at.askLLM(`Extract the latest data provided by the user in the correct order based on the required format. Return the result as an array of strings. For optional fields, return an empty string.`, z.array(z.string()));
+      console.log({ data });
+      await addNewRecord(auth, spreadsheet_id, spreadsheet_sheet_name, data);
+      await at.streamLLM(
+        `Thank the user and inform them that the questionnaire has been completed. After this, do not accept any more data and ask the user to refresh or reopen the page to start a new session.`,
+        (s: string) => at.print(s)
+      );
+      at.exit(``);
+      return;
     } else {
-      at.print(err?.message ?? '5XX: Agent cannot process this request', true);
+      await at.streamLLM(
+        `User request: "${instruction}". Respond to the user's request, but continue guiding them to complete the questionnaire.`,
+        (s: string) => at.print(s)
+      );
+      at.print('', true);
     }
-  }
+  });
 }
 
 startAgentServer(agent, {
