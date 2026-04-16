@@ -24,28 +24,29 @@ export async function agent(at: AgentTool) {
     });
     await testRead(auth, spreadsheet_id, spreadsheet_sheet_name);
   } catch (err: any) {
-    at.exit(`ERROR FAILED AUTHENTICATE SHEETS: ${err.message}`);
+    at.exit(`ERROR: Failed to authenticate Google Sheets: ${err.message}`);
     return;
   }
   const name = process.env.NAME || 'Questionnaire Agent';
-  await at.prepareKnowledge(`You are an agent and your name is ${name}.`);
-  await at.prepareKnowledge(process.env.AGENT_BRIEF || 'No brief');
+  await at.prepareKnowledge(`You are an agent named ${name}.`);
+  await at.prepareKnowledge(process.env.AGENT_BRIEF || 'No brief provided.');
   await at.prepareKnowledge([
-    'Questionnaire Format (must follow this)',
-    process.env.QUESTIONNAIRE_FORMAT || 'This questionnaire format is: name, email, and comments',
-    'Your job to gather data from user based on questionnaire format above in the correct order (order is matter), user can provide data unordered',
+    'Questionnaire Format (must be followed):',
+    process.env.QUESTIONNAIRE_FORMAT || 'name, email, comments',
+    'Your task is to collect data from the user based on the questionnaire format above, in the correct order (order matters). The user may provide data in any order.',
   ].join('\n'));
   await at.prepareKnowledge(`Current date and time: ${new Date().toISOString()}`);
 
   // Initial greetings
   at.print(await at.askLLM(
     [
-      'Give short greetings to user based on given context',
-      'Your greetings must be simple and related to questionnaire',
-      'First, ask user to say magic word "start" to begin gathering questionnaire data and after user say the magic work you should tell what data they need to provide to complete the questionnaire',
-      'Dont tell user its a magic word, translate the magic word to user-brief-language',
-      'Always begin the questionnaire after the magic word',
-      'Alaways confirm the data after user complete all required fields'
+      'Provide a short greeting to the user based on the given context.',
+      'The greeting must be simple and related to the questionnaire.',
+      'First, ask the user to say a specific word (translated into the user\'s language) to begin.',
+      'Do not explicitly mention that it is a "magic word".',
+      'After the user says the word, explain what data they need to provide to complete the questionnaire.',
+      'Always begin the questionnaire after the user provides the word.',
+      'Always confirm the data after the user completes all required fields.',
     ].join('\n')
   ), true);
   
@@ -53,21 +54,21 @@ export async function agent(at: AgentTool) {
   try {
     while (true) {
       const instruction = await at.waitForUserInstruction();
-      const has_complete_data: boolean = await at.askLLM(`Did user completed all required data for the questionnaire?`, z.boolean());
+      const has_complete_data: boolean = await at.askLLM(`Has the user provided all required data for the questionnaire?`, z.boolean());
       console.log({ has_complete_data });
       if (!has_complete_questionnaire && has_complete_data) {
-        const data: string[] = await at.askLLM(`Extract latest data provided by user with correct order as given format! Format must be in array of string, on optional fields give blank string`, z.array(z.string()));
+        const data: string[] = await at.askLLM(`Extract the latest data provided by the user in the correct order based on the required format. Return the result as an array of strings. For optional fields, return an empty string.`, z.array(z.string()));
         console.log({ data });
         await addNewRecord(auth, spreadsheet_id, spreadsheet_sheet_name, data);
         await at.streamLLM(
-          `Now say thanks for the user and questionnaire has been close. After this session you are not allowed to receive other data and push user to refresh or reopen the page to start new session`,
+          `Thank the user and inform them that the questionnaire has been completed. After this, do not accept any more data and ask the user to refresh or reopen the page to start a new session.`,
           (s: string) => at.print(s)
         );
         at.exit(``);
         return;
       } else {
         await at.streamLLM(
-          `User request: "${instruction}". Respond user request but keep push for gathering data.`,
+          `User request: "${instruction}". Respond to the user's request, but continue guiding them to complete the questionnaire.`,
           (s: string) => at.print(s)
         );
         at.print('', true);
